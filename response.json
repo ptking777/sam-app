@@ -1,0 +1,1 @@
+{"errorMessage":"This will cause a deployment rollback","errorType":"java.lang.Error","stackTrace":["helloworld.App.handleRequest(App.java:22)","sun.reflect.GeneratedMethodAccessor4.invoke(Unknown Source)","sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)","java.lang.reflect.Method.invoke(Method.java:498)"]}

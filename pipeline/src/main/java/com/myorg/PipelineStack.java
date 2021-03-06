@@ -34,6 +34,7 @@ public class PipelineStack extends Stack {
         CodeCommitSourceAction codeCommitSource = new CodeCommitSourceAction(CodeCommitSourceActionProps.builder()
                 .actionName("CodeCommit_Source")
                 .repository(codeRepo)
+                .branch("main")
                 .output(sourceOutput)
                 .build());
         
@@ -41,6 +42,59 @@ public class PipelineStack extends Stack {
                 .stageName("Source")
                 .actions(Collections.singletonList(codeCommitSource))
                 .build());
+                
+                
+                
+                
+        // Declare build output as artifacts
+        Artifact buildOutput = new Artifact("buildOutput");
+        
+        // Declare a new CodeBuild project
+        PipelineProject buildProject = new PipelineProject(this, "Build", PipelineProjectProps.builder()
+                .environment(BuildEnvironment.builder()
+                        .buildImage(AMAZON_LINUX_2).build())
+                .environmentVariables(Collections.singletonMap("PACKAGE_BUCKET", BuildEnvironmentVariable.builder()
+                        .value(artifactsBucket.getBucketName())
+                        .build()))
+                .build());
+        
+        // Add the build stage to our pipeline
+        CodeBuildAction buildAction = new CodeBuildAction(CodeBuildActionProps.builder()
+                .actionName("Build")
+                .project(buildProject)
+                .input(sourceOutput)
+                .outputs(Collections.singletonList(buildOutput))
+                .build());
+        
+        pipeline.addStage(StageOptions.builder()
+                .stageName("Build")
+                .actions(Collections.singletonList(buildAction))
+                .build());
+                
+                
+                // Deploy stage
+        CloudFormationCreateReplaceChangeSetAction createChangeSet = new CloudFormationCreateReplaceChangeSetAction(CloudFormationCreateReplaceChangeSetActionProps.builder()
+                .actionName("CreateChangeSet")
+                .templatePath(buildOutput.atPath("packaged.yaml"))
+                .stackName("sam-app")
+                .adminPermissions(true)
+                .changeSetName("sam-app-dev-changeset")
+                .runOrder(1)
+                .build());
+        
+        CloudFormationExecuteChangeSetAction executeChangeSet = new CloudFormationExecuteChangeSetAction(CloudFormationExecuteChangeSetActionProps.builder()
+                .actionName("Deploy")
+                .stackName("sam-app")
+                .changeSetName("sam-app-dev-changeset")
+                .runOrder(2)
+                .build());
+        
+        pipeline.addStage(StageOptions.builder()
+                .stageName("Dev")
+                .actions(Arrays.asList(createChangeSet, executeChangeSet))
+                .build());
+        
+                        
 
     }
 }
